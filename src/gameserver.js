@@ -45,7 +45,8 @@ function drawRect(x, y, w, h, color, buffer = 1) {
     renderData.width = w
     renderData.height = h
     renderData.score = 127
-    server.sendViaVirtualChannel(1314, renderData, 1002)
+    server.sendViaVirtualChannel(activePlayers[0], renderData, 1002)
+    server.sendViaVirtualChannel(activePlayers[1], renderData, 1002)
 }
 
 // draw circle, will be used to draw the ball
@@ -56,7 +57,8 @@ function drawArc(x, y, r, color, buffer = 1) {
     renderData.width = r
     renderData.height = r
     renderData.score = 127
-    server.sendViaVirtualChannel(1314, renderData, 1002)
+    server.sendViaVirtualChannel(activePlayers[0], renderData, 1002)
+    server.sendViaVirtualChannel(activePlayers[1], renderData, 1002)
 }
 
 // when COM or USER scores, we reset the ball
@@ -67,6 +69,11 @@ function resetBall() {
     ball.speed = 7;
 }
 
+function resetScore() {
+    user.score = 0
+    com.score = 0
+}
+
 // draw text
 function drawText(text, x, y, buffer = 1) {
     renderData.buffer = buffer
@@ -75,7 +82,8 @@ function drawText(text, x, y, buffer = 1) {
     renderData.width = 1
     renderData.height = 2
     renderData.score = text
-    server.sendViaVirtualChannel(1314, renderData, 1002)
+    server.sendViaVirtualChannel(activePlayers[0], renderData, 1002)
+    server.sendViaVirtualChannel(activePlayers[1], renderData, 1002)
 }
 
 // collision detection
@@ -113,7 +121,7 @@ function update() {
 
     // computer plays for itself, and we must be able to beat it
     // simple AI
-    com.y += ((ball.y - (com.y + com.height / 2))) * 0.1;
+    // com.y += ((ball.y - (com.y + com.height / 2))) * 0.1;
 
     // when the ball collides with bottom and top walls we inverse the y velocity.
     if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
@@ -176,12 +184,19 @@ function game() {
 let framePerSecond = 50;
 
 var server = new RGPModelServer()
+var connidIndex = 1
+var activePlayers = []
+var started = false
 
 server.onconfirm = (onConfirmEvent) => {
     console.log("[user] server on confirm")
     // 默认允许连接、并且自增客户端 ID
-    onConfirmEvent.allow = true
-    onConfirmEvent.connid = 1314
+    if (activePlayers.length < 2) {
+        onConfirmEvent.allow = true
+        onConfirmEvent.connid = connidIndex
+        activePlayers.push(connidIndex)
+        connidIndex++
+    }
 }
 
 server.onconnected = (onConnectedEvent) => {
@@ -189,23 +204,34 @@ server.onconnected = (onConnectedEvent) => {
     // 注册一个虚拟通道
     server.createVirtualChannel(onConnectedEvent.connid, null, 1002, "draw")
 
-    //call the game function 50 times every 1 Sec
-    let loop = setInterval(game, 1000 / framePerSecond);
+    // 第二个玩家加入时开始游戏
+    if (activePlayers.length == 2 && !started) {
+        started = true
+        let loop = setInterval(game, 1000 / framePerSecond)
+    }
 }
 
 server.onclose = (onCloseEvent) => {
     console.log("[user] client close conn:", onCloseEvent.connid, "errcode:", onCloseEvent.errorcode)
+    activePlayers.length = 0
 }
 
 server.onerror = (onErrorEvent) => {
     console.log("[user] error on conn:", onErrorEvent.connid, "errcode:", onErrorEvent.errorcode)
+    activePlayers.length = 0
 }
 
 server.onvchann = (onVChannAcquireEvent) => {
     onVChannAcquireEvent.allow = true
     onVChannAcquireEvent.callback = (vchannDataEvent) => {
         console.log("[user] biz packet data, y:", vchannDataEvent.data.y)
-        user.y = vchannDataEvent.data.y
+        if (vchannDataEvent.connid == activePlayers[0]) {
+            user.y = vchannDataEvent.data.y
+        } else if (vchannDataEvent.connid == activePlayers[1]) {
+            com.y = vchannDataEvent.data.y
+        } else {
+            console.error("unknown guy connecting")
+        }
     }
 }
 

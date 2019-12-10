@@ -149,4 +149,4 @@ client.onvchann = (onVChannAcquireEvent) => {
     }
 }
 
-client.connect("ws://localhost:3001")
+client.connect("ws://localhost:27854")

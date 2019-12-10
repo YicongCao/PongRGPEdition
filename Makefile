@@ -6,7 +6,7 @@ build:
 	docker image ls | grep $(img_name)
 
 run:
-	docker run -it --rm -p 3000:3000 -p 3001:3001 $(img_name):$(img_ver)
+	docker run -it --rm -p 27853:3000 -p 27854:3001 $(img_name):$(img_ver)
 
 export:
 	docker save -o ../$(img_name)$(img_ver).tar $(img_name):$(img_ver)
