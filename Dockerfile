@@ -4,9 +4,9 @@ WORKDIR /app
 
 # prepare environment
 COPY package*.json ./
-RUN npm install
 RUN npm install browserify -g 
 RUN apk add --no-cache bash
+RUN npm install
 
 # generate frontend code
 COPY . .
