@@ -68,7 +68,9 @@ function getMousePos(evt) {
     // user.y = evt.clientY - rect.top - user.height / 2;
 
     var bizPacket = new Protocol.BizMousePosPacket(0, evt.clientY - rect.top - user.height / 2)
-    client.sendViaVirtualChannel(bizPacket, 1001)
+    if (iochann) {
+        iochann.send(bizPacket)
+    }
 }
 
 // render function, the function that does al the drawing
@@ -125,9 +127,10 @@ function render() {
 // render()
 
 var client = new RGPModelClient()
+var iochann = null
 client.onconnected = (onConnectedEvent) => {
     console.log("[user] client on connected:", onConnectedEvent.connid)
-    client.createVirtualChannel(null, 1001, "pos")
+    iochann = client.createVirtualChannel(null, 1001, "pos")
 }
 
 client.onclose = (onCloseEvent) => {
