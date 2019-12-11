@@ -45,8 +45,9 @@ function drawRect(x, y, w, h, color, buffer = 1) {
     renderData.width = w
     renderData.height = h
     renderData.score = 127
-    server.sendViaVirtualChannel(activePlayers[0], renderData, 1002)
-    server.sendViaVirtualChannel(activePlayers[1], renderData, 1002)
+    renderChanns.forEach((rchann) => {
+        rchann.send(renderData)
+    })
 }
 
 // draw circle, will be used to draw the ball
@@ -57,8 +58,9 @@ function drawArc(x, y, r, color, buffer = 1) {
     renderData.width = r
     renderData.height = r
     renderData.score = 127
-    server.sendViaVirtualChannel(activePlayers[0], renderData, 1002)
-    server.sendViaVirtualChannel(activePlayers[1], renderData, 1002)
+    renderChanns.forEach(rchann => {
+      rchann.send(renderData)
+    })
 }
 
 // when COM or USER scores, we reset the ball
@@ -82,8 +84,9 @@ function drawText(text, x, y, buffer = 1) {
     renderData.width = 1
     renderData.height = 2
     renderData.score = text
-    server.sendViaVirtualChannel(activePlayers[0], renderData, 1002)
-    server.sendViaVirtualChannel(activePlayers[1], renderData, 1002)
+    renderChanns.forEach(rchann => {
+      rchann.send(renderData)
+    })
 }
 
 // collision detection
@@ -177,8 +180,8 @@ function render() {
 }
 
 function game() {
-    update();
-    render();
+    update()
+    render()
     console.log("rending frame", seq++)
 }
 let framePerSecond = 50;
@@ -186,23 +189,24 @@ let framePerSecond = 50;
 var server = new RGPModelServer()
 var connidIndex = 1
 var activePlayers = []
+var renderChanns = []
 var started = false
 
 server.onconfirm = (onConfirmEvent) => {
     console.log("[user] server on confirm")
     // 默认允许连接、并且自增客户端 ID
+    onConfirmEvent.allow = true
+    onConfirmEvent.connid = connidIndex
     if (activePlayers.length < 2) {
-        onConfirmEvent.allow = true
-        onConfirmEvent.connid = connidIndex
         activePlayers.push(connidIndex)
-        connidIndex++
     }
+    connidIndex++
 }
 
 server.onconnected = (onConnectedEvent) => {
     console.log("[user] server on connected:", onConnectedEvent.connid)
     // 注册一个虚拟通道
-    server.createVirtualChannel(onConnectedEvent.connid, null, 1002, "draw")
+    renderChanns.push(server.createVirtualChannel(onConnectedEvent.connid, null, 1002, "draw"))
 
     // 第二个玩家加入时开始游戏
     if (activePlayers.length == 2 && !started) {
@@ -214,11 +218,13 @@ server.onconnected = (onConnectedEvent) => {
 server.onclose = (onCloseEvent) => {
     console.log("[user] client close conn:", onCloseEvent.connid, "errcode:", onCloseEvent.errorcode)
     activePlayers.length = 0
+    renderChanns.length = 0
 }
 
 server.onerror = (onErrorEvent) => {
     console.log("[user] error on conn:", onErrorEvent.connid, "errcode:", onErrorEvent.errorcode)
     activePlayers.length = 0
+    renderChanns.length = 0
 }
 
 server.onvchann = (onVChannAcquireEvent) => {
