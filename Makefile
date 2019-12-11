@@ -1,4 +1,4 @@
-img_ver=v1
+img_ver=v2
 img_name=pong-game
 
 build:

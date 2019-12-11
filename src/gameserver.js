@@ -76,6 +76,11 @@ function resetScore() {
     com.score = 0
 }
 
+function resetTimer() {
+    clearInterval(timerID)
+    timerID = -1
+}
+
 // draw text
 function drawText(text, x, y, buffer = 1) {
     renderData.buffer = buffer
@@ -85,7 +90,7 @@ function drawText(text, x, y, buffer = 1) {
     renderData.height = 2
     renderData.score = text
     renderChanns.forEach(rchann => {
-      rchann.send(renderData)
+        rchann.send(renderData)
     })
 }
 
@@ -182,7 +187,7 @@ function render() {
 function game() {
     update()
     render()
-    console.log("rending frame", seq++)
+    // console.log("rending frame", seq++)
 }
 let framePerSecond = 50;
 
@@ -190,7 +195,8 @@ var server = new RGPModelServer()
 var connidIndex = 1
 var activePlayers = []
 var renderChanns = []
-var started = false
+var eventChanns = []
+var timerID = -1
 
 server.onconfirm = (onConfirmEvent) => {
     console.log("[user] server on confirm")
@@ -207,36 +213,55 @@ server.onconnected = (onConnectedEvent) => {
     console.log("[user] server on connected:", onConnectedEvent.connid)
     // 注册一个虚拟通道
     renderChanns.push(server.createVirtualChannel(onConnectedEvent.connid, null, 1002, "draw"))
+    eventChanns.push(server.createVirtualChannel(onConnectedEvent.connid, null, 1003, "cmd"))
 
     // 第二个玩家加入时开始游戏
-    if (activePlayers.length == 2 && !started) {
+    if (activePlayers.length == 2 && timerID == -1) {
         started = true
-        let loop = setInterval(game, 1000 / framePerSecond)
+        timerID = setInterval(game, 1000 / framePerSecond)
+        console.log("active players", activePlayers)
     }
+
+    // 其他玩家通知围观
+    eventChanns.forEach((chann) => {
+        if (!activePlayers.includes(chann.baseconn.connid)) {
+            chann.send(new Protocol.BizOneBytePacket(1))
+        }
+    })
 }
 
 server.onclose = (onCloseEvent) => {
-    console.log("[user] client close conn:", onCloseEvent.connid, "errcode:", onCloseEvent.errorcode)
-    activePlayers.length = 0
-    renderChanns.length = 0
+    console.log("[user] client close conn:", onCloseEvent.connid, "errcode:", onCloseEvent.errorcode, "playerol:", activePlayers)
+    if (activePlayers.includes(onCloseEvent.connid)) {
+        console.log("active player exited game:", onCloseEvent.connid)
+        activePlayers.length = 0
+        renderChanns.length = 0
+        resetTimer()
+        resetBall()
+        resetScore()
+    }
 }
 
 server.onerror = (onErrorEvent) => {
-    console.log("[user] error on conn:", onErrorEvent.connid, "errcode:", onErrorEvent.errorcode)
-    activePlayers.length = 0
-    renderChanns.length = 0
+    console.log("[user] error on conn:", onErrorEvent.connid, "errcode:", onErrorEvent.errorcode, "playerol:", activePlayers)
+    if (activePlayers.includes(onCloseEvent.connid)) {
+        console.log("active player exited game:", onErrorEvent.connid)
+        activePlayers.length = 0
+        renderChanns.length = 0
+        resetTimer()
+        resetBall()
+        resetScore()
+    }
 }
 
 server.onvchann = (onVChannAcquireEvent) => {
     onVChannAcquireEvent.allow = true
     onVChannAcquireEvent.callback = (vchannDataEvent) => {
-        console.log("[user] biz packet data, y:", vchannDataEvent.data.y)
+        // console.log("[user] biz packet data, y:", vchannDataEvent.data.y)
         if (vchannDataEvent.connid == activePlayers[0]) {
             user.y = vchannDataEvent.data.y
         } else if (vchannDataEvent.connid == activePlayers[1]) {
             com.y = vchannDataEvent.data.y
-        } else {
-            console.error("unknown guy connecting")
         }
     }
 }

@@ -143,11 +143,20 @@ client.onerror = (onErrorEvent) => {
 
 client.onvchann = (onVChannAcquireEvent) => {
     onVChannAcquireEvent.allow = true
-    onVChannAcquireEvent.callback = (vchannDataEvent) => {
-        console.log("[user] biz render data")
-        renderqueue.push(vchannDataEvent.data)
-        if (vchannDataEvent.data.buffer === 0) {
-            render()
+    if (onVChannAcquireEvent.channid == 1002) {
+        onVChannAcquireEvent.callback = (vchannDataEvent) => {
+            console.log("[user] biz render data")
+            renderqueue.push(vchannDataEvent.data)
+            if (vchannDataEvent.data.buffer === 0) {
+                render()
+            }
+        }
+    } else if (onVChannAcquireEvent.channid == 1003) {
+        onVChannAcquireEvent.callback = (vchannDataEvent) => {
+            console.log("[user] biz render data")
+            if (vchannDataEvent.data.data == 1) {
+                alert("围观视角，不可操作哦😯")
+            }
         }
     }
 }
